@@ -1,0 +1,17 @@
+{
+  "name": "paper-theater",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@chenglou/pretext": "^0.0.3",
+    "alea": "^1.0.1",
+    "three": "^0.183.2",
+    "vite": "^8.0.3"
+  }
+}

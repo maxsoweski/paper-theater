@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Paper Theater</title>
+    <link rel="icon" href="data:,">
+  </head>
+  <body>
+    <!-- Three.js renders here -->
+    <canvas id="stage"></canvas>
+    <!-- 2D overlay for typographic text mode -->
+    <canvas id="text-overlay"></canvas>
+    <div id="controls">
+      <button id="btn-reseed">New Scene</button>
+      <label>Seed: <input id="seed-input" type="text" value="hello" /></label>
+      <label>Biome: <select id="biome-select">
+        <option value="alpine">Alpine</option>
+        <option value="forest" selected>Forest</option>
+        <option value="meadow">Meadow</option>
+      </select></label>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
