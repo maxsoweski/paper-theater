@@ -192,7 +192,10 @@ function renderText() {
   offCtx.putImageData(imageData, 0, 0);
 
   textCtx.clearRect(0, 0, textCanvas.width, textCanvas.height);
-  renderTypographic(textCtx, offCtx, textCanvas.width, textCanvas.height, {
+  // IMPORTANT: sample from the offscreen canvas at its actual size (600x384),
+  // but render text to the full text canvas (800x512). The renderer handles
+  // the coordinate mapping internally by sampling srcCtx at its own dimensions.
+  renderTypographic(textCtx, offCtx, width, height, textCanvas.width, textCanvas.height, {
     font: '12px Georgia',
     lineHeight: 16,
     timeOfDay,
