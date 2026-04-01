@@ -17,6 +17,7 @@ import { registerAllTypes } from './stage/meshes.js';
 import { generateBiome, BIOME_DEFS } from './stage/biomes.js';
 import { createRng } from './core/random.js';
 import { renderTypographic } from './core/typographic.js';
+import { TAGS } from './core/tags.js';
 import { Clouds } from './stage/effects/Clouds.js';
 import { Stars } from './stage/effects/Stars.js';
 
@@ -169,40 +170,46 @@ function buildScene() {
   });
 }
 
+// ── Type → ID mapping for ID buffer ──
+// Build a mapping from mesh type names to integer IDs (1-253).
+// ID 0 = nothing, 254 = sky, 255 = ground.
+const allTypes = Object.keys(TAGS).filter(t => !t.startsWith('boundary_'));
+const typeToId = new Map();
+const idToType = new Map();
+allTypes.forEach((type, i) => {
+  const id = i + 1; // 1-based (0 = nothing)
+  typeToId.set(type, id);
+  idToType.set(id, type);
+});
+// Special IDs
+idToType.set(254, 'sky');
+idToType.set(255, 'ground');
+
 // ── Text overlay render ──
 function renderText() {
   if (!textMode) return;
 
-  const { pixels, width, height } = stage.readPixels();
+  // Read color buffer (for tinting)
+  const color = stage.readPixels();
 
-  const offscreen = document.createElement('canvas');
-  offscreen.width = width;
-  offscreen.height = height;
-  const offCtx = offscreen.getContext('2d');
-  const imageData = offCtx.createImageData(width, height);
-
-  // WebGL readPixels gives bottom-up, flip vertically
-  for (let y = 0; y < height; y++) {
-    const srcRow = (height - 1 - y) * width * 4;
-    const dstRow = y * width * 4;
-    for (let x = 0; x < width * 4; x++) {
-      imageData.data[dstRow + x] = pixels[srcRow + x];
-    }
-  }
-  offCtx.putImageData(imageData, 0, 0);
+  // Render ID buffer (for object identification)
+  const id = stage.renderIdBuffer(typeToId);
 
   textCtx.clearRect(0, 0, textCanvas.width, textCanvas.height);
-  // IMPORTANT: sample from the offscreen canvas at its actual size (600x384),
-  // but render text to the full text canvas (800x512). The renderer handles
-  // the coordinate mapping internally by sampling srcCtx at its own dimensions.
-  renderTypographic(textCtx, offCtx, width, height, textCanvas.width, textCanvas.height, {
-    font: '12px Georgia',
-    lineHeight: 16,
-    timeOfDay,
-    seed,
-    biome,
-    bgColor: '#060608',
-  });
+  renderTypographic(
+    textCtx,
+    color.pixels,
+    id.pixels,
+    color.width, color.height,
+    textCanvas.width, textCanvas.height,
+    idToType,
+    {
+      font: '12px Georgia',
+      lineHeight: 16,
+      seed,
+      bgColor: '#060608',
+    }
+  );
 }
 
 // ── Animation loop ──

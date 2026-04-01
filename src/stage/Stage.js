@@ -350,6 +350,95 @@ export class Stage {
     return { pixels, width: w, height: h };
   }
 
+  /**
+   * Render an ID buffer — each object type gets a unique flat color.
+   * Used by the typographic renderer to know exactly what's at each pixel.
+   *
+   * @param {Map<string, number>} typeToId - Maps poolType → integer ID (0-254)
+   * @returns {{ pixels: Uint8Array, width: number, height: number }}
+   */
+  renderIdBuffer(typeToId) {
+    const w = this.renderer.domElement.width;
+    const h = this.renderer.domElement.height;
+
+    // Create offscreen render target if needed
+    if (!this._idTarget || this._idTarget.width !== w || this._idTarget.height !== h) {
+      if (this._idTarget) this._idTarget.dispose();
+      this._idTarget = new THREE.WebGLRenderTarget(w, h, {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        format: THREE.RGBAFormat,
+        type: THREE.UnsignedByteType,
+      });
+    }
+
+    // Save original materials, swap to flat ID colors
+    const origMaterials = new Map();
+    const idMaterials = new Map(); // cache per ID
+
+    this.scene.traverse((obj) => {
+      if (obj.isMesh || obj.isInstancedMesh) {
+        const type = obj.userData.poolType;
+        if (type && typeToId.has(type)) {
+          origMaterials.set(obj, obj.material);
+          const id = typeToId.get(type);
+          if (!idMaterials.has(id)) {
+            idMaterials.set(id, new THREE.MeshBasicMaterial({
+              color: new THREE.Color(id / 255, 0, 0),
+              fog: false,
+            }));
+          }
+          obj.material = idMaterials.get(id);
+        }
+      }
+    });
+
+    // Ground gets ID 255
+    const groundOrig = this.ground.material;
+    this.ground.material = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(255 / 255, 0, 0),
+      fog: false,
+    });
+
+    // Sky gets ID 254
+    const skyOrig = this.sky.material;
+    this.sky.material = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(254 / 255, 0, 0),
+      fog: false,
+      side: THREE.BackSide,
+    });
+
+    // Disable fog for ID pass
+    const origFog = this.scene.fog;
+    const origBg = this.scene.background;
+    this.scene.fog = null;
+    this.scene.background = new THREE.Color(254 / 255, 0, 0); // sky ID
+
+    // Render to ID target
+    this.renderer.setRenderTarget(this._idTarget);
+    this.renderer.render(this.scene, this.camera);
+    this.renderer.setRenderTarget(null);
+
+    // Read pixels
+    const pixels = new Uint8Array(w * h * 4);
+    this.renderer.readRenderTargetPixels(this._idTarget, 0, 0, w, h, pixels);
+
+    // Restore everything
+    this.scene.fog = origFog;
+    this.scene.background = origBg;
+    this.ground.material = groundOrig;
+    this.sky.material = skyOrig;
+    for (const [obj, mat] of origMaterials) {
+      obj.material = mat;
+    }
+
+    // Dispose temp materials
+    for (const [, mat] of idMaterials) mat.dispose();
+    this.ground.material !== groundOrig && this.ground.material.dispose?.();
+
+    return { pixels, width: w, height: h };
+  }
+
   dispose() {
     this.stop();
     window.removeEventListener('resize', this._onResize);
